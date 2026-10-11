@@ -1,0 +1,16 @@
+tmp/
+cfg/artifacts/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+*.pth
+*.pt
+*.ckpt
+*.npy
+*.npz
+HDD/
+SSD/
+runs/
+smoketest/

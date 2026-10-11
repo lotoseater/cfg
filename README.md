@@ -59,3 +59,7 @@ python -m scripts.analyze_velocity --input /path/to/run --output /path/to/analys
 分析入口也接受已保存的 `velocity_curves.json`，报告中的数值从输入统计计算。
 
 部署细节见 [docs/deployment.md](docs/deployment.md)；公式与历史记录见 [实验规范](docs/experiment-spec.md) 和 [实验记录](docs/experiment-history.md)。上游源文件的许可保留在 [src/upstream/LICENSE](src/upstream/LICENSE)。
+
+## 替代 unconditional 的每类实验
+
+公共模型目录为 `/home/zjiaak/HDD/dinov2/` 和 `/home/zjiaak/HDD/resnet50/`，与 `cfg`、`fds` 平级。方案、资产、CPU 准备及 GPU 恢复后的入口见 [docs/reference-replacement.md](docs/reference-replacement.md)。配置在 `configs/replacement.json`；指标按目标类别计算，使用冻结分类器、DINO-KID 与类内多样性。

@@ -1,5 +1,6 @@
 tmp/
 cfg/artifacts/
+artifacts/
 __pycache__/
 *.py[cod]
 .DS_Store

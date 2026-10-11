@@ -15,3 +15,6 @@ HDD/
 SSD/
 runs/
 smoketest/
+.refactor-check/
+._*
+.ruff_cache/

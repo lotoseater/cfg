@@ -11,6 +11,7 @@ from pathlib import Path
 from src.io import write_json
 from src.paths import BASE, PROJECT_ROOT, bounded, environment
 from src.provenance import code_hashes
+from src.replacement.execution import merge_workers, partition_samples
 from src.replacement.protocol import (
     DEFAULT_CONFIG,
     generator_config,
@@ -97,16 +98,25 @@ def main():
     (root / "status.txt").write_text("GENERATING\n")
     print("RUN_ROOT", root, flush=True)
 
-    def lane(gpu, assigned):
-        for group in assigned:
-            with (root / f"{group['name']}.log").open("x") as log:
+    partitions = partition_samples(records, study["batch_size"], len(devices))
+    shards = []
+    for index, part in enumerate(partitions):
+        shard = root / "shards" / f"gpu_{devices[index]}"
+        shard.mkdir(parents=True)
+        write_json(shard / "plan.json", dict(plan, num_images=len(part)))
+        write_json(shard / "samples.json", part)
+        shards.append(shard)
+
+    def lane(gpu, shard):
+        for group in selected:
+            with (shard / f"{group['name']}.log").open("x") as log:
                 subprocess.run(
                     [
                         sys.executable,
                         "-m",
                         "scripts.generate",
                         "--root",
-                        str(root),
+                        str(shard),
                         "--group",
                         group["name"],
                     ],
@@ -116,16 +126,16 @@ def main():
                     stderr=subprocess.STDOUT,
                     check=True,
                 )
-            print("GROUP_COMPLETE", group["name"], gpu, flush=True)
+            print("SHARD_GROUP_COMPLETE", group["name"], gpu, flush=True)
 
     try:
         with ThreadPoolExecutor(max_workers=len(devices)) as pool:
             futures = [
-                pool.submit(lane, gpu, selected[index :: len(devices)])
-                for index, gpu in enumerate(devices)
+                pool.submit(lane, gpu, shard) for gpu, shard in zip(devices, shards)
             ]
             for future in futures:
                 future.result()
+        merge_workers(root, shards, plan, records)
         write_json(root / "pairing.json", validate_pairing(root))
         (root / "status.txt").write_text("GENERATED\n")
         print("GENERATION_COMPLETE", root, flush=True)

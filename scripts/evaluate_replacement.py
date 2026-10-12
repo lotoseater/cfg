@@ -7,7 +7,7 @@ from pathlib import Path
 from src.io import digest, write_json
 from src.paths import bounded
 from src.provenance import code_hashes
-from src.replacement.protocol import validate_pairing, verify_assets
+from src.replacement.protocol import reference_signature, validate_pairing, verify_assets
 
 
 def main():
@@ -24,8 +24,10 @@ def main():
         parser.error("Real-reference cache is not ready")
     plan = json.loads((root / "plan.json").read_text())
     study = plan["protocol"]
-    if study != json.loads((reference / "protocol.json").read_text()):
-        parser.error("Real cache protocol differs from generation protocol")
+    if reference_signature(study) != reference_signature(
+        json.loads((reference / "protocol.json").read_text())
+    ):
+        parser.error("Real cache feature-extraction protocol differs from generation protocol")
     verify_assets(study, include_generator=False)
     validate_pairing(root)
     records = json.loads((root / "samples.json").read_text())

@@ -13,6 +13,22 @@ from src.provenance import assert_upstream
 DEFAULT_CONFIG = CONFIG_DIR / "replacement.json"
 
 
+def reference_signature(study):
+    """Only feature-extraction settings determine whether a real cache is reusable."""
+    keys = (
+        "target_classes",
+        "real_validation",
+        "dino_source",
+        "dino_source_commit",
+        "dino_weights",
+        "dino_sha256",
+        "classifier_weights",
+        "classifier_sha256",
+        "feature_batch_size",
+    )
+    return {key: study[key] for key in keys}
+
+
 def load_protocol(path=DEFAULT_CONFIG):
     study = json.loads(Path(path).read_text())
     targets, references = study["target_classes"], study["reference_classes"]

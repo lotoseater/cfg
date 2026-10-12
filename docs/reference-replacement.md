@@ -1,6 +1,6 @@
 # 用类别速度替换 CFG 的 unconditional 分支
 
-本轮使用 locpu3 的七张 GPU（0–6）。locpu3 与 locpu4 共用 SSD/HDD，实验代码在 `/home/zjiaak/SSD/projects/cfg`，模型资产位于各项目共用的 HDD 目录。首次 batch512 pilot 在共享显存条件下 OOM，未生成图片；当前统一改为 batch128，处于停止状态。
+本轮使用 locpu3 的七张 GPU（0–6）。locpu3 与 locpu4 共用 SSD/HDD，实验代码在 `/home/zjiaak/SSD/projects/cfg`，模型资产位于各项目共用的 HDD 目录。首次 batch512 pilot 在共享显存条件下 OOM，未生成图片；当前统一改为 batch128。
 
 ## 公共模型资产
 
@@ -36,7 +36,7 @@
 
 四个替代类为 548 entertainment center、690 oxcart、784 screwdriver、843 swing。
 
-pilot 每个目标类 × 设置 128 张，合计 6,144 张；正式阶段每组 1,000 张，合计 48,000 张。六个设置各自产生全部目标类，分配到 locpu3 的 0–5 号 GPU 上，6 号卡备用。正式阶段使用独立的新 seed，不能直接复用 pilot 样本。CPU 噪声按 sample ID 创建，分组、分 batch 都不会改变噪声。每组保存逐图噪声哈希；完成后核验配对、样本集合与固定配置。
+pilot 每个目标类 × 设置 128 张，合计 6,144 张；正式阶段每组 1,000 张，合计 48,000 张。完整 batch 按顺序轮转分配到指定 GPU，每张卡按相同分片生成全部六种设置。pilot 的八个 batch 刚好对应八个目标类：0–7 号卡各生成一个目标类的六种设置。分片保持原有 batch 内 sample ID 和顺序，输出保留 `shards/gpu_<id>/` 的逐组日志和审计，完成后汇总为常规六组目录。正式阶段使用独立的新 seed，不能直接复用 pilot 样本。CPU 噪声按 sample ID 创建，分组、分 batch 都不会改变噪声。每组保存逐图噪声哈希；完成后核验配对、样本集合与固定配置。
 
 ## 指标与统计
 
@@ -65,18 +65,18 @@ $PYTHON -m scripts.prepare_replacement --device cpu
 $PYTHON -m scripts.run_replacement pilot --plan-only
 ```
 
-batch128 的 CPU 参考缓存为 `/home/zjiaak/HDD/cfg/reference/replacement_20261012_cpu_bs128/`，包含八个目标类的 400 张验证图。旧目录 `replacement_20261012_cpu/` 保留 batch512 协议，不用于当前配置的评测。参考缓存默认写入 `HDD/cfg/reference/replacement_<timestamp>/`。每次生成/评测输出独立文件夹。真实与生成特征必须使用相同 evaluator 版本、权重、预处理、精度和计算设备；若改为 GPU 特征评估，需先重建 GPU 真实参照。
+复用已完成的 CPU 参考缓存 `/home/zjiaak/HDD/cfg/reference/replacement_20261012_cpu/`，包含八个目标类的 400 张验证图。修改生成 batch 不改变真实图特征；复用时检查目标类别、验证数据路径、评估模型权重/源码、特征 batch，以及 evaluator 版本、预处理、精度和计算设备一致。未完成的 `replacement_20261012_cpu_bs128/` 不用于评测。参考缓存默认写入 `HDD/cfg/reference/replacement_<timestamp>/`。每次生成/评测输出独立文件夹；若改为 GPU 特征评估，需先重建 GPU 真实参照。
 
 ## CUDA 恢复后
 
 先真实模型 pilot，检查显存、配对图片、真实分类器表现和每类指标。生成入口先逐卡进行 CUDA 实际运算；失败时不创建生成运行目录、不修改系统驱动。
 
 ```bash
-$PYTHON -m scripts.run_replacement pilot --gpus 0,1,2,3,4,5
+$PYTHON -m scripts.run_replacement pilot --gpus 0,1,2,3,4,5,6
 $PYTHON -m scripts.evaluate_replacement --root /path/to/pilot --reference /path/to/ready_reference --device cpu
 
 # 查看 pilot 后再执行；要求同配置/源码且已完成评测的 pilot
-$PYTHON -m scripts.run_replacement formal --pilot /path/to/pilot --gpus 0,1,2,3,4,5
+$PYTHON -m scripts.run_replacement formal --pilot /path/to/pilot --gpus 0,1,2,3,4,5,6
 $PYTHON -m scripts.evaluate_replacement --root /path/to/formal --reference /path/to/ready_reference --device cpu
 ```
 

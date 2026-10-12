@@ -7,7 +7,7 @@
   "method": "heun",
   "steps": 50,
   "cfg_scale": 3.0,
-  "batch_size": 512,
+  "batch_size": 128,
   "noise_seed": 0,
   "seed_stride": 100000,
   "pilot": {"images_per_class": 128, "seed_offset": 0},

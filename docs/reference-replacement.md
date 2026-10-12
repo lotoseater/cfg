@@ -1,6 +1,6 @@
 # 用类别速度替换 CFG 的 unconditional 分支
 
-本轮在 locpu4 准备。模型资产为各项目共用的 HDD 目录；实验代码在 `/home/zjiaak/SSD/projects/cfg`。当前只准备资产、CPU 真实参照和入口，没有启动生成。
+本轮使用 locpu3 的七张 GPU（0–6）。locpu3 与 locpu4 共用 SSD/HDD，实验代码在 `/home/zjiaak/SSD/projects/cfg`，模型资产位于各项目共用的 HDD 目录。首次 batch512 pilot 在共享显存条件下 OOM，未生成图片；当前统一改为 batch128，处于停止状态。
 
 ## 公共模型资产
 
@@ -15,7 +15,7 @@
 
 ## 固定方案
 
-主实验使用标准 Heun 50 步/99 NFE、CFG=3，复用 JiT-B/16 `model_ema1`、256 分辨率、BF16 模型计算/FP32 状态、原有 CFG interval 与后处理，batch512。只替换参考分支的标签：
+主实验使用标准 Heun 50 步/99 NFE、CFG=3，复用 JiT-B/16 `model_ema1`、256 分辨率、BF16 模型计算/FP32 状态、原有 CFG interval 与后处理，batch128（CFG 双分支模型输入为 256）。pilot 和正式阶段的全部设置使用同一 batch。只替换参考分支的标签：
 
 `v_guided = v_reference + scale * (v_target - v_reference)`。
 
@@ -36,7 +36,7 @@
 
 四个替代类为 548 entertainment center、690 oxcart、784 screwdriver、843 swing。
 
-pilot 每个目标类 × 设置 128 张，合计 6,144 张；正式阶段每组 1,000 张，合计 48,000 张。六个设置各自产生全部目标类，分配到指定 GPU 上；传八张卡时六个生成 worker 并行。正式阶段使用独立的新 seed，不能直接复用 pilot 样本。CPU 噪声按 sample ID 创建，分组、分 batch 都不会改变噪声。每组保存逐图噪声哈希；完成后核验配对、样本集合与固定配置。
+pilot 每个目标类 × 设置 128 张，合计 6,144 张；正式阶段每组 1,000 张，合计 48,000 张。六个设置各自产生全部目标类，分配到 locpu3 的 0–5 号 GPU 上，6 号卡备用。正式阶段使用独立的新 seed，不能直接复用 pilot 样本。CPU 噪声按 sample ID 创建，分组、分 batch 都不会改变噪声。每组保存逐图噪声哈希；完成后核验配对、样本集合与固定配置。
 
 ## 指标与统计
 
@@ -65,21 +65,21 @@ $PYTHON -m scripts.prepare_replacement --device cpu
 $PYTHON -m scripts.run_replacement pilot --plan-only
 ```
 
-已准备的 CPU 参考缓存为 `/home/zjiaak/HDD/cfg/reference/replacement_20261012_cpu/`，状态 `READY`，包含八个目标类的 400 张验证图。参考缓存默认写入 `HDD/cfg/reference/replacement_<timestamp>/`。每次生成/评测输出独立文件夹。真实与生成特征必须使用相同 evaluator 版本、权重、预处理、精度和计算设备；若改为 GPU 特征评估，需先重建 GPU 真实参照。
+batch128 的 CPU 参考缓存为 `/home/zjiaak/HDD/cfg/reference/replacement_20261012_cpu_bs128/`，包含八个目标类的 400 张验证图。旧目录 `replacement_20261012_cpu/` 保留 batch512 协议，不用于当前配置的评测。参考缓存默认写入 `HDD/cfg/reference/replacement_<timestamp>/`。每次生成/评测输出独立文件夹。真实与生成特征必须使用相同 evaluator 版本、权重、预处理、精度和计算设备；若改为 GPU 特征评估，需先重建 GPU 真实参照。
 
 ## CUDA 恢复后
 
 先真实模型 pilot，检查显存、配对图片、真实分类器表现和每类指标。生成入口先逐卡进行 CUDA 实际运算；失败时不创建生成运行目录、不修改系统驱动。
 
 ```bash
-$PYTHON -m scripts.run_replacement pilot --gpus 0,1,2,3,4,5,6,7
+$PYTHON -m scripts.run_replacement pilot --gpus 0,1,2,3,4,5
 $PYTHON -m scripts.evaluate_replacement --root /path/to/pilot --reference /path/to/ready_reference --device cpu
 
 # 查看 pilot 后再执行；要求同配置/源码且已完成评测的 pilot
-$PYTHON -m scripts.run_replacement formal --pilot /path/to/pilot --gpus 0,1,2,3,4,5,6,7
+$PYTHON -m scripts.run_replacement formal --pilot /path/to/pilot --gpus 0,1,2,3,4,5
 $PYTHON -m scripts.evaluate_replacement --root /path/to/formal --reference /path/to/ready_reference --device cpu
 ```
 
-batch512 是既有实验设置；目标 GPU 上尚未完成 JiT 实际生成烟测。若需要改 batch，所有设置统一修改并重新 pilot。
+batch128 是当前统一设置，尚未完成该 batch 的完整 pilot；先前的 batch512 单次前向通过，但完整采样 OOM，不能把单次前向视为完整采样验证。若再次改 batch，所有设置统一修改并重新 pilot。
 
 评测输出包含原始特征/分类概率、`classwise_results.json`、`report.md`，以及 `blind/` 的同 seed A/B 样图、真实图参照与打分 CSV。盲选页随机排列试次与左右位置，标明目标类名称；对应关系在页外的 `blind_key_private.json`。人工分数需由评审填写，程序不代填。

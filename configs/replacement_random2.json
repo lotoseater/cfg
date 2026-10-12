@@ -1,0 +1,71 @@
+{
+  "base_config": "locpu4.json",
+  "selection_seed": 2026101202,
+  "target_classes": [
+    1,
+    8,
+    44,
+    51,
+    416,
+    575,
+    808,
+    994
+  ],
+  "reference_classes": [
+    548,
+    690,
+    784,
+    843,
+    571,
+    105,
+    346,
+    434
+  ],
+  "include_same_target_control": false,
+  "method": "heun",
+  "steps": 50,
+  "cfg_scale": 3.0,
+  "batch_size": 128,
+  "noise_seed": 0,
+  "seed_stride": 100000,
+  "pilot": {
+    "images_per_class": 128,
+    "seed_offset": 1000
+  },
+  "formal": {
+    "images_per_class": 1000,
+    "seed_offset": 10000
+  },
+  "real_validation": "HDD/imagenet/val",
+  "dino_source": "HDD/dinov2/source",
+  "dino_source_commit": "2302b6bf46953431b969155307b9bed152754069",
+  "dino_weights": "HDD/dinov2/dinov2_vitb14_pretrain.pth",
+  "dino_sha256": "0b8b82f85de91b424aded121c7e1dcc2b7bc6d0adeea651bf73a13307fad8c73",
+  "classifier_weights": "HDD/resnet50/resnet50-11ad3fa6.pth",
+  "classifier_sha256": "11ad3fa62ca79e40addfd354a8ec4b7c75143b3038b8d2a807fbc68deab379ca",
+  "feature_batch_size": 16,
+  "bootstrap_replicates": 2000,
+  "permutation_replicates": 10000,
+  "statistics_seed": 2026101202,
+  "accuracy_equivalence_margin": 0.02,
+  "kid_equivalence_margin": null,
+  "blind_seeds_per_class": 16,
+  "round_description": "Independent-seed replication of four original fixed references plus four new randomly selected fixed references; no dynamic reference selection.",
+  "reference_selection": {
+    "original": [
+      548,
+      690,
+      784,
+      843
+    ],
+    "new": [
+      571,
+      105,
+      346,
+      434
+    ],
+    "seed": 2026101202,
+    "exclude_target_and_original_references": true
+  },
+  "previous_run": "HDD/cfg/smoketest/replacement_pilot_20261012_150246_142815"
+}
